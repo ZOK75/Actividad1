@@ -1,6 +1,13 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                    @auth
+                        @if(auth()->user()->is_admin)
+                            <div class="bg-red-600 text-white text-center font-bold p-3 rounded-lg shadow-md my-4">
+                                Estás en modo administrador
+                            </div>
+                        @endif
+                    @endauth
             {{ __('Dashboard') }}
         </h2>
     </x-slot>
