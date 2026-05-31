@@ -27,8 +27,21 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
-        $request->session()->regenerate();
+        $user = Auth::user();
 
+        if ($user->is_admin) {
+            Auth::logout();
+            $request->session()->put('2fa_user_id', $user->id);
+            if (empty($user->google2fa_secret)) {
+                return redirect()->route('2fa.register');
+            }
+
+            return redirect()->route('2fa.challenge');
+        }
+
+        $request->session()->regenerate();
+        
+        return redirect()->intended(route('dashboard', absolute: false));
         return redirect()->intended(RouteServiceProvider::HOME);
     }
 
