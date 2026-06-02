@@ -34,10 +34,21 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
 
-        if ($user->is_admin) {
-            Auth::logout();
-            $request->session()->put('2fa_user_id', $user->id);
-            if (empty($user->google2fa_secret)) {
+        if ($user && $user->is_admin) {
+                $adminId = $user->id;
+                $adminEmail = $user->email;
+                $hasSecret = !empty($user->google2fa_secret);
+                Auth::logout();
+
+                $request->session()->put('2fa_user_id', $adminId);
+
+            $emailOtp = rand(100000, 999999);
+            $request->session()->put('auth_user_otp_code', $emailOtp);
+            $request->session()->save();
+
+            \Illuminate\Support\Facades\Mail::to($adminEmail)->send(new \App\Mail\OtpMail($emailOtp));
+
+            if (!$hasSecret) {
                 return redirect()->route('2fa.register');
             }
 

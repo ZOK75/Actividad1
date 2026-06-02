@@ -33,12 +33,22 @@ class TwoFactorController extends Controller
     }
 
     // Guarda la clave tras escanear
-    public function saveRegister(Request $request)
-    {
-        $userId = $request->session()->get('2fa_user_id');
-        $secretKey = $request->session()->get('2fa_secret_temp');
-        
-        $request->validate(['one_time_password' => 'required|digits:6']);
+        public function saveRegister(Request $request)
+        {
+            $userId = $request->session()->get('2fa_user_id');
+            $secretKey = $request->session()->get('2fa_secret_temp');
+            
+            $request->validate([
+                'one_time_password' => 'required|digits:6',
+                'email_otp_code' => 'required|digits:6'
+            ], [
+                'one_time_password.required' => 'El código del celular es obligatorio.',
+                'email_otp_code.required' => 'El código enviado al correo es obligatorio.'
+            ]);
+
+            if ($request->email_otp_code != $request->session()->get('auth_user_otp_code')) {
+                return back()->withErrors(['email_otp_code' => 'El código de correo electrónico es incorrecto. Verifícalo en Mailtrap.']);
+            }
 
         $google2fa = app('pragmarx.google2fa');
         $valid = $google2fa->verifyKey($secretKey, $request->one_time_password);
@@ -70,7 +80,17 @@ class TwoFactorController extends Controller
         $userId = $request->session()->get('2fa_user_id');
         if (!$userId) return redirect()->route('login');
 
-        $request->validate(['one_time_password' => 'required|digits:6']);
+        $request->validate([
+            'one_time_password' => 'required|digits:6',
+            'email_otp_code' => 'required|digits:6'
+        ], [
+            'one_time_password.required' => 'El código del celular es obligatorio.',
+            'email_otp_code.required' => 'El código enviado al correo es obligatorio.'
+        ]);
+
+        if ($request->email_otp_code != $request->session()->get('auth_user_otp_code')) {
+            return back()->withErrors(['email_otp_code' => 'El código de correo electrónico es incorrecto. Verifícalo en Mailtrap.']);
+        }
 
         $user = User::find($userId);
         $google2fa = app('pragmarx.google2fa');
@@ -79,7 +99,9 @@ class TwoFactorController extends Controller
 
         if ($valid) {
             Auth::login($user);
-            $request->session()->forget('2fa_user_id');
+            $request->session()->forget(['2fa_user_id', 'auth_user_otp_code']);
+            $request->session()->save();
+
             return redirect()->route('dashboard');
         }
 
