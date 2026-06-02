@@ -55,7 +55,7 @@ return [
         'stack' => [
             'driver' => 'stack',
             'name' => 'practica1',
-            'channels' => ['single'],
+            'channels' => ['daily', 'paper'],
             'ignore_exceptions' => false,
         ],
 
@@ -68,10 +68,12 @@ return [
 
         'daily' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/laravel.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
-            'days' => 14,
+            'path' => storage_path('logs/login/auth.log'),
+            'level' => env('info'),
+            'days' => 30,
             'replace_placeholders' => true,
+            'permission' => 0664,
+            'dir_permission' => 0775,
         ],
 
         'slack' => [
