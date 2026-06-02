@@ -6,6 +6,10 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Failed;
+use App\Listeners\LogSuccessfulLogin;
+use App\Listeners\LogFailedLogin;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -18,7 +22,17 @@ class EventServiceProvider extends ServiceProvider
         Registered::class => [
             SendEmailVerificationNotification::class,
         ],
+
+         Login::class => [
+            LogSuccessfulLogin::class,
+        ],
+    
+        Failed::class => [
+            LogFailedLogin::class,
+        ],
     ];
+
+ 
 
     /**
      * Register any events for your application.
