@@ -28,7 +28,7 @@ class AuthenticatedSessionController extends Controller
         ]);
 
         if (!$captchaValido) {
-    // 🤖 Alerta de posible BOT
+    //  Alerta de posible BOT
             Log::channel('login')->alert('[CAPTCHA_FAILED] Intento de bypass o captcha incorrecto', [
             'ip' => request()->ip(),
             'formulario' => request()->path(), // Nos dice si fue en login, registro, etc.
