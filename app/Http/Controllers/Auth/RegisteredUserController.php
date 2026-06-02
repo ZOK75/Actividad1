@@ -31,6 +31,12 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        \Illuminate\Support\Facades\Log::channel('login')->info('[REGISTER_ATTEMPT] Intento de registro de nuevo usuario', [
+        'email' => $request->email,
+        'ip' => $request->ip(),
+        'user_agent' => $request->userAgent()
+        ]);
+
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
