@@ -4,7 +4,7 @@
             @auth
                 @if(auth()->user()->is_admin)
                     <div class="bg-red-600 text-white text-center font-bold p-3 rounded-lg shadow-md my-4">
-                        Estás en modo administrador
+                        Modo ADMINISTRADOR. Estas accediendo a contenido PRIVADO, en caso de estar viendo esto y no contar con las los permisos necesarios, se tomarán ACCIONES LEGALES.
                     </div>
                 @endif
             @endauth
@@ -34,17 +34,12 @@
     </div>
 @if(!auth()->check())
     <script>
-        // Si la pestaña no está marcada como autorizada
         if (window.name !== 'pestaña_invitado_activa') {
             
-            // Verificamos si viene directo de completar exitosamente el formulario del OTP
             if (sessionStorage.getItem('flujo_invitado_valido') === 'true') {
-                // Como viene del flujo legal, bautizamos la pestaña para que resista los F5
                 window.name = 'pestaña_invitado_activa';
                 sessionStorage.removeItem('flujo_invitado_valido');
             } else {
-                // Si no tiene nombre y tampoco viene del OTP... ¡Es una pestaña nueva/clonada!
-                // Lo mandamos al checkpoint sin pensarlo
                 window.location.href = "{{ route('invitado.checkpoint') }}";
             }
         }

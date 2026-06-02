@@ -1,6 +1,6 @@
 <x-guest-layout>
     <div class="mb-6 text-center">
-        <h2 class="text-xl font-bold text-blue-600 mb-2">🔒 Seguridad de la Cuenta</h2>
+        <h2 class="text-xl font-bold text-blue-600 mb-2">Seguridad de la Cuenta</h2>
         <h3 class="text-md font-semibold text-gray-800 mb-2">Verificar Inicio de Sesión</h3>
         <p class="text-sm text-gray-600">Por seguridad, hemos enviado un código de acceso de 6 dígitos a tu correo registrado. Revisa tu bandeja de <strong>Mailtrap</strong>.</p>
     </div>

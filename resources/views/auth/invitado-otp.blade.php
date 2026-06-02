@@ -1,6 +1,6 @@
 <x-guest-layout>
     <div class="mb-6 text-center">
-        <h2 class="text-xl font-bold text-gray-800 mb-2">📩 Verificar Código OTP</h2>
+        <h2 class="text-xl font-bold text-gray-800 mb-2">Verificar Código OTP</h2>
         <p class="text-sm text-gray-600">Hemos enviado un código de seguridad al correo electrónico proporcionado. Revisa tu bandeja de <strong>Mailtrap</strong>.</p>
     </div>
 

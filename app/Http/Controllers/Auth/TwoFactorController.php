@@ -10,7 +10,6 @@ use PragmaRX\Google2FALaravel\Support\Authenticator;
 
 class TwoFactorController extends Controller
 {
-    // Muestra el QR por primera vez
     public function showRegister(Request $request)
     {
         $userId = $request->session()->get('2fa_user_id');
@@ -19,20 +18,16 @@ class TwoFactorController extends Controller
         $user = User::find($userId);
         $google2fa = app('pragmarx.google2fa');
 
-        // Generar una nueva clave secreta
         $secretKey = $google2fa->generateSecretKey();
         $request->session()->put('2fa_secret_temp', $secretKey);
 
-        // Crear la URL para el código QR (reemplaza 'MiApp' por el nombre de tu proyecto)
         $qrCodeUrl = $google2fa->getQRCodeUrl('Actividad1-Admin', $user->email, $secretKey);
 
-        // Usamos una API en línea rápida para renderizar la URL en una imagen QR
         $qrCodeImage = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" . urlencode($qrCodeUrl);
 
         return view('auth.2fa-register', compact('qrCodeImage', 'secretKey'));
     }
 
-    // Guarda la clave tras escanear
         public function saveRegister(Request $request)
         {
             $userId = $request->session()->get('2fa_user_id');
@@ -58,7 +53,6 @@ class TwoFactorController extends Controller
             $user->google2fa_secret = $secretKey;
             $user->save();
 
-            // Login oficial
             Auth::login($user);
             $request->session()->forget(['2fa_user_id', '2fa_secret_temp']);
             return redirect()->route('dashboard');
@@ -67,14 +61,12 @@ class TwoFactorController extends Controller
         return back()->withErrors(['one_time_password' => 'Código OTP incorrecto. Intenta de nuevo.']);
     }
 
-    // Muestra la pantalla de reto (pedir código de 6 dígitos)
     public function showChallenge(Request $request)
     {
         if (!$request->session()->has('2fa_user_id')) return redirect()->route('login');
         return view('auth.2fa-challenge');
     }
 
-    // Verifica el reto enviado
     public function verifyChallenge(Request $request)
     {
         $userId = $request->session()->get('2fa_user_id');
