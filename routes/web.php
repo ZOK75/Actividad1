@@ -21,32 +21,27 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function (Request $request) {
-    // 1. Si NO está logueado como usuario/admin Y TAMPOCO tiene el pase de invitado, al checkpoint
     if (!auth()->check() && !$request->session()->has('invitado_verificado')) {
         return redirect()->route('invitado.checkpoint');
     }
 
-    // 2. Si es un INVITADO (no está logueado pero tiene el pase temporal)
     if (!auth()->check() && $request->session()->has('invitado_verificado')) {
         
         $tiempoActual = time();
-        $tiempoInactividadPermitido = 300; // 5 minutos en segundos
+        $tiempoInactividadPermitido = 300;
 
         if ($request->session()->has('invitado_ultima_actividad')) {
             $ultimaActividad = $request->session()->get('invitado_ultima_actividad');
             
-            // Si superó el tiempo de inactividad, destruimos la sesión del invitado
             if (($tiempoActual - $ultimaActividad) > $tiempoInactividadPermitido) {
                 $request->session()->forget(['invitado_verificado', 'invitado_ultima_actividad']);
                 return redirect()->route('invitado.checkpoint')->withErrors(['invitado_email' => 'Tu sesión de invitado expiró por inactividad.']);
             }
         }
 
-        // Actualizamos la estampa de tiempo para que el F5 o navegar lo mantenga vivo
         $request->session()->put('invitado_ultima_actividad', $tiempoActual);
     }
 
-    // 3. Si es un USUARIO REGISTRADO/ADMIN o invitado válido, entra normal
     return view('dashboard');
 })->name('dashboard');
 
@@ -71,5 +66,8 @@ Route::post('/invitado-checkpoint', [OtpMailController::class, 'processInvitadoC
 Route::get('/invitado-otp', [OtpMailController::class, 'showInvitadoOtpForm'])->name('invitado.otp');
 
 Route::post('/invitado-otp', [OtpMailController::class, 'verifyInvitadoOtp'])->name('invitado.otp.submit');
+
+Route::get('/verificar-usuario', [OtpMailController::class, 'showUsuarioOtpForm'])->name('usuario.otp');
+Route::post('/verificar-usuario', [OtpMailController::class, 'verifyUsuarioOtp'])->name('usuario.otp.submit');
 
 require __DIR__.'/auth.php';

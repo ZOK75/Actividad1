@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class LoginRequest extends FormRequest
 {
@@ -133,5 +134,10 @@ protected function ensureIsNotRateLimited($userId, $email, $ip): void
         'email' => 'Has alcanzado el límite de intentos de esta oleada.',
     ]);
 }
+
+public function throttleKey(): string
+    {
+        return Str::transliterate(Str::lower($this->input('email')).'|'.$this->ip());
+    }
 
 }

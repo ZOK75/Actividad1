@@ -45,8 +45,16 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 
-        Auth::login($user);
+        session()->put('auth_pre_user_id', $user->id);
+        session()->put('auth_pre_user_email', $user->email);
 
-        return redirect(RouteServiceProvider::HOME);
+        $otp = rand(100000, 999999);
+        session()->put('auth_user_otp_code', $otp);
+
+        session()->save();
+
+        \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\OtpMail($otp));
+
+        return redirect()->route('usuario.otp');
     }
 }
