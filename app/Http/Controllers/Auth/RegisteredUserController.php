@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Log;
 
 class RegisteredUserController extends Controller
 {
@@ -56,5 +57,16 @@ class RegisteredUserController extends Controller
         \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\OtpMail($otp));
 
         return redirect()->route('usuario.otp');
+
+        if (!$captchaValido) {
+    // 🤖 Alerta de posible BOT
+             Log::channel('login')->alert('[CAPTCHA_FAILED] Intento de bypass o captcha incorrecto', [
+            'ip' => request()->ip(),
+            'formulario' => request()->path(), // Nos dice si fue en login, registro, etc.
+            'user_agent' => request()->userAgent()
+        ]);
+    
+         return back()->withErrors(['captcha' => 'Captcha inválido.']);
+        }
     }
 }

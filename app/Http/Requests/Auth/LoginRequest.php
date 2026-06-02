@@ -122,9 +122,22 @@ protected function ensureIsNotRateLimited($userId, $email, $ip): void
     ]);
 }
 
-public function throttleKey(): string
+    public function throttleKey(): string
     {
         return Str::transliterate(Str::lower($this->input('email')).'|'.$this->ip());
     }
 
+    protected function withValidator($validator)
+    {
+     // Le decimos al validador que si falla, ejecute nuestra bitácora antes de rebotar al usuario
+        $validator->after(function ($validator) {
+            if ($validator->errors()->any()) {
+                 \Illuminate\Support\Facades\Log::channel('login')->warning('[VALIDATION_ERROR] Campos mal formados en el Login', [
+                    'ip' => $this->ip(),
+                    'errores' => $validator->errors()->messages(),
+                    'user_agent' => $this->userAgent()
+                ]);
+            }
+        });
+    }
 }
