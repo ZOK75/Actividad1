@@ -76,6 +76,13 @@ return [
             'dir_permission' => 0775,
         ],
 
+        'login' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/login/auth.log'),
+            'level' => 'info',
+            'days' => 14,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),
