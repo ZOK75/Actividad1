@@ -22,27 +22,6 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): View
     {
-        Log::channel('login')->info('[GUEST_ACCESS] Invitado visualizando la pantalla de Login', [
-        'ip' => request()->ip(),
-        'user_agent' => request()->userAgent()
-        ]);
-
-        if (!$captchaValido) {
-    //  Alerta de posible BOT
-            Log::channel('login')->alert('[CAPTCHA_FAILED] Intento de bypass o captcha incorrecto', [
-            'ip' => request()->ip(),
-            'formulario' => request()->path(), // Nos dice si fue en login, registro, etc.
-            'user_agent' => request()->userAgent()
-         ]);
-    
-        return back()->withErrors(['captcha' => 'Captcha inválido.']);
-        }
-
-// Opcional: Registrar si pasó con éxito
-        Log::channel('login')->info('[CAPTCHA_PASSED] Captcha resuelto correctamente', [
-        'ip' => request()->ip()
-        ]);
-        
         return view('auth.login');
     }
 
