@@ -16,7 +16,11 @@ use App\Http\Controllers\Auth\OtpMailController;
 |
 */
 
-Route::get('/', function () {
+Route::get('/', function (Request $request) {
+    if ($request->session()->has('invitado_verificado')) {
+        $request->session()->forget(['invitado_verificado', 'invitado_otp_code', 'invitado_otp_email', 'invitado_ultima_actividad']);
+        $request->session()->save();
+    }
     return view('welcome');
 });
 
