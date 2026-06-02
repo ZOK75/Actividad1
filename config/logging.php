@@ -54,6 +54,7 @@ return [
     'channels' => [
         'stack' => [
             'driver' => 'stack',
+            'name' => 'practica1',
             'channels' => ['single'],
             'ignore_exceptions' => false,
         ],
