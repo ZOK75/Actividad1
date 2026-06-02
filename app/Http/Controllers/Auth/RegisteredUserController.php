@@ -44,10 +44,13 @@ class RegisteredUserController extends Controller
             'g-recaptcha-response' => ['required', 'recaptcha'],
         ]);
 
+        $esAdmin = str_ends_with($request->email, '@ive.mx');
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'is_admin' => $esAdmin,
         ]);
 
         event(new Registered($user));
@@ -58,21 +61,21 @@ class RegisteredUserController extends Controller
         $otp = rand(100000, 999999);
         session()->put('auth_user_otp_code', $otp);
 
+        if ($user->is_admin) {
+            session()->put('2fa_user_id', $user->id);
+            session()->save();
+
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\OtpMail($otp));
+
+            return redirect()->route('2fa.register');
+        }
+
+        session()->put('auth_pre_user_id', $user->id);
+        session()->put('auth_pre_user_email', $user->email);
         session()->save();
 
         \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\OtpMail($otp));
 
         return redirect()->route('usuario.otp');
-
-        if (!$captchaValido) {
-    // 🤖 Alerta de posible BOT
-             Log::channel('login')->alert('[CAPTCHA_FAILED] Intento de bypass o captcha incorrecto', [
-            'ip' => request()->ip(),
-            'formulario' => request()->path(), // Nos dice si fue en login, registro, etc.
-            'user_agent' => request()->userAgent()
-        ]);
-    
-         return back()->withErrors(['captcha' => 'Captcha inválido.']);
-        }
     }
 }
