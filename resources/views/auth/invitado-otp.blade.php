@@ -4,7 +4,7 @@
         <p class="text-sm text-gray-600">Hemos enviado un código de seguridad al correo electrónico proporcionado. Revisa tu bandeja de <strong>Mailtrap</strong>.</p>
     </div>
 
-    <form method="POST" action="{{ route('invitado.otp.submit') }}">
+    <form method="POST" action="{{ route('invitado.otp.submit') }}" onsubmit="sessionStorage.setItem('flujo_invitado_valido', 'true');">
         @csrf
 
         <div>

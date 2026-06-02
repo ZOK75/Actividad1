@@ -29,18 +29,24 @@ Route::get('/dashboard', function (Request $request) {
     // 2. Si es un INVITADO (no está logueado pero tiene el pase temporal)
     if (!auth()->check() && $request->session()->has('invitado_verificado')) {
         
-        // Almacenamos temporalmente que queremos mostrar la vista
-        $view = view('dashboard');
+        $tiempoActual = time();
+        $tiempoInactividadPermitido = 300; // 5 minutos en segundos
 
-        // 🔥 ¡EL TRUCO AQUÍ! Olvidamos el pase inmediatamente.
-        // Como la petición actual ya pasó el IF de arriba, la vista se cargará esta vez,
-        // pero si abre otra pestaña o recarga, la sesión estará limpia y lo botará.
-        $request->session()->forget('invitado_verificado');
+        if ($request->session()->has('invitado_ultima_actividad')) {
+            $ultimaActividad = $request->session()->get('invitado_ultima_actividad');
+            
+            // Si superó el tiempo de inactividad, destruimos la sesión del invitado
+            if (($tiempoActual - $ultimaActividad) > $tiempoInactividadPermitido) {
+                $request->session()->forget(['invitado_verificado', 'invitado_ultima_actividad']);
+                return redirect()->route('invitado.checkpoint')->withErrors(['invitado_email' => 'Tu sesión de invitado expiró por inactividad.']);
+            }
+        }
 
-        return $view;
+        // Actualizamos la estampa de tiempo para que el F5 o navegar lo mantenga vivo
+        $request->session()->put('invitado_ultima_actividad', $tiempoActual);
     }
 
-    // 3. Si es un USUARIO REGISTRADO/ADMIN, lo dejamos pasar normal (su sesión dura lo normal)
+    // 3. Si es un USUARIO REGISTRADO/ADMIN o invitado válido, entra normal
     return view('dashboard');
 })->name('dashboard');
 
