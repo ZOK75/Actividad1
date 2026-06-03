@@ -30,23 +30,56 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
+        // 1. 🤖 VALIDACIÓN DEL reCAPTCHA (Frena bots antes de tocar la base de datos)
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'g-recaptcha-response' => ['required', 'recaptcha'],
+        ], [
+            'g-recaptcha-response.required' => 'Por favor, completa el reCAPTCHA para demostrar que no eres un robot.',
+            'g-recaptcha-response.recaptcha' => 'El reCAPTCHA no es válido. Inténtalo de nuevo.'
+        ]);
+
+        if ($validator->fails()) {
+            // LOG: Alerta de captcha fallido o ignorado en el Login
+            \Illuminate\Support\Facades\Log::channel('login')->alert('[CAPTCHA_FAILED] Intento de inicio de sesión bloqueado por reCAPTCHA inválido', [
+                'email_intento' => $request->email ?? 'No proporcionado',
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent()
+            ]);
+
+            return back()->withErrors($validator)->withInput();
+        }
+
+        //  LOG: Registramos que el captcha se resolvió correctamente
+        \Illuminate\Support\Facades\Log::channel('login')->info('[CAPTCHA_PASSED] reCAPTCHA verificado con éxito en Login', [
+            'email' => $request->email,
+            'ip' => $request->ip()
+        ]);
+
+
+        // 2.TU FLUJO ORIGINAL PERSONALIZADO (Se ejecuta intacto si el captcha es correcto)
         $request->authenticate();
 
         $user = Auth::user();
 
         if ($user && $user->is_admin) {
-                $adminId = $user->id;
-                $adminEmail = $user->email;
-                $hasSecret = !empty($user->google2fa_secret);
-                Auth::logout();
+            $adminId = $user->id;
+            $adminEmail = $user->email;
+            $hasSecret = !empty($user->google2fa_secret);
+            Auth::logout();
 
-                $request->session()->put('2fa_user_id', $adminId);
+            $request->session()->put('2fa_user_id', $adminId);
 
             $emailOtp = rand(100000, 999999);
             $request->session()->put('auth_user_otp_code', $emailOtp);
             $request->session()->save();
 
             \Illuminate\Support\Facades\Mail::to($adminEmail)->send(new \App\Mail\OtpMail($emailOtp));
+
+            // }LOG: Registro de OTP para administrador
+            \Illuminate\Support\Facades\Log::channel('login')->info('[OTP_GENERATED] Código OTP enviado a Administrador para 2FA', [
+                'email_solicitado' => $adminEmail,
+                'ip' => $request->ip()
+            ]);
 
             if (!$hasSecret) {
                 return redirect()->route('2fa.register');
@@ -66,6 +99,12 @@ class AuthenticatedSessionController extends Controller
         $request->session()->save();
 
         \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\OtpMail($otp));
+
+        // LOG: Registro de OTP para usuario normal
+        \Illuminate\Support\Facades\Log::channel('login')->info('[OTP_GENERATED] Código OTP enviado a Usuario para Segundo Factor', [
+            'email_solicitado' => $user->email,
+            'ip' => $request->ip()
+        ]);
 
         return redirect()->route('usuario.otp');
     }

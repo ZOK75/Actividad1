@@ -14,7 +14,7 @@ class OtpMailController extends Controller
 {
     public function processInvitadoCheckpoint(Request $request)
     {
-        $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'g-recaptcha-response' => ['required', 'recaptcha'],
             'invitado_email' => ['required', 'email']
         ], [
@@ -23,15 +23,32 @@ class OtpMailController extends Controller
             'invitado_email.email' => 'Por favor, ingresa un correo electrónico válido.'
         ]);
 
-        $otp = rand(100000, 999999);
+        if ($validator->fails()) {
+        // LOG: Si el fallo involucra al reCAPTCHA
+            if ($validator->errors()->has('g-recaptcha-response')) {
+                \Illuminate\Support\Facades\Log::channel('login')->alert('[CAPTCHA_FAILED] Invitado falló o ignoró el reCAPTCHA', [
+                    'email_intento' => $request->invitado_email ?? 'No proporcionado',
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent()
+                ]);
+            }
 
+            return back()->withErrors($validator)->withInput();
+        }
+
+    // LOG: Si pasó el captcha con éxito
+        \Illuminate\Support\Facades\Log::channel('login')->info('[CAPTCHA_PASSED] Invitado resolvió el reCAPTCHA correctamente', [
+            'email' => $request->invitado_email,
+            'ip' => $request->ip()
+        ]);
+
+        $otp = rand(100000, 999999);
         session()->put('invitado_otp_code', $otp);
         session()->put('invitado_otp_email', $request->invitado_email);
-        
-        Mail::to($request->invitado_email)->send(new OtpMail($otp));
+    
+        \Illuminate\Support\Facades\Mail::to($request->invitado_email)->send(new \App\Mail\OtpMail($otp));
 
-        // 📝 LOG: Registro de generación de OTP para invitado
-        Log::channel('login')->info('[OTP_GENERATED] Se ha solicitado un código OTP para Invitado', [
+        \Illuminate\Support\Facades\Log::channel('login')->info('[OTP_GENERATED] Se ha solicitado un código OTP para Invitado', [
             'email_solicitado' => $request->invitado_email,
             'ip' => $request->ip(),
             'dispositivo' => $request->userAgent()
@@ -57,7 +74,7 @@ class OtpMailController extends Controller
         if ($request->otp_input == session()->get('invitado_otp_code')) {
             session()->put('invitado_verificado', true);
             
-            // 📝 LOG: Verificación exitosa
+            // LOG: Verificación exitosa
             Log::channel('login')->info('[OTP_VERIFIED] Invitado verificó su OTP con éxito', [
                 'email' => $emailInvitado,
                 'ip' => $request->ip()
@@ -68,7 +85,7 @@ class OtpMailController extends Controller
             return redirect()->route('dashboard');
         }
 
-        // 📝 LOG: Intento fallido de código OTP
+        // LOG: Intento fallido de código OTP
         Log::channel('login')->warning('[OTP_FAILED] Código OTP incorrecto insertado por invitado', [
             'email_intento' => $emailInvitado,
             'codigo_ingresado' => $request->otp_input,
@@ -99,7 +116,7 @@ class OtpMailController extends Controller
             if ($user) {
                 Auth::login($user);
 
-                // 📝 LOG: Verificación de segundo factor exitosa para usuario registrado
+                // LOG: Verificación de segundo factor exitosa para usuario registrado
                 Log::channel('login')->info('[2FA_VERIFIED] Usuario autenticado completamente mediante OTP', [
                     'email' => $user->email,
                     'ip' => $request->ip()
@@ -113,7 +130,7 @@ class OtpMailController extends Controller
             }
         }
 
-        // 📝 LOG: Intento de OTP fallido para usuario registrado
+        // LOG: Intento de OTP fallido para usuario registrado
         Log::channel('login')->warning('[2FA_FAILED] Código OTP de segundo factor incorrecto', [
             'email_usuario' => $emailUsuario,
             'codigo_ingresado' => $request->otp_input,
