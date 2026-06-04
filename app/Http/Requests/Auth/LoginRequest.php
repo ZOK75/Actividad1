@@ -49,11 +49,22 @@ class LoginRequest extends FormRequest
         $user = User::where('email', $email)->first();
         $userId = $user ? $user->id : null;
 
+        // 1. Revisar si ya está baneado por el triple bloqueo corporativo
         $this->checkTripleLockout($userId, $email, $ip);
 
+        // 2. Revisar si ya agotó los intentos de la oleada actual
         $this->ensureIsNotRateLimited($userId, $email, $ip);
 
+        // 3. Intento de autenticación nativo
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+            
+            //LOG: Intento fallido de Login (Contraseña incorrecta o correo inexistente)
+            \Illuminate\Support\Facades\Log::channel('login')->warning('[LOGIN_FAILED] Credenciales erróneas introducidas en el Login', [
+                'email_intento' => $email,
+                'ip' => $ip,
+                'user_agent' => $this->userAgent()
+            ]);
+
             RateLimiter::hit($this->throttleKey(), 86400); // Se mantiene activo el conteo
 
             if (RateLimiter::attempts($this->throttleKey()) >= 5) {
@@ -71,7 +82,7 @@ class LoginRequest extends FormRequest
         RateLimiter::clear($this->throttleKey());
     }
 
-    protected function applyWaveLockout($user, $email, $ip)
+   protected function applyWaveLockout($user, $email, $ip)
     {
         $turns = $user ? $user->blocked_turns + 1 : 1;
         
@@ -103,12 +114,22 @@ class LoginRequest extends FormRequest
         Cache::put("lockout:email:{$email}", true, $bannedUntil);
         Cache::put("lockout:ip:{$ip}", true, $bannedUntil);
 
+        // LOG: Registrar baneo activo en tu canal de auditoría
+        \Illuminate\Support\Facades\Log::channel('login')->critical("[BAN_ACTIVATED] {$reason}", [
+            'email' => $email,
+            'ip' => $ip,
+            'oleada_turno' => $turns,
+            'banned_until' => $bannedUntil->toDateTimeString()
+        ]);
+
         event(new SecurityAlertTriggered($user?->id, $email, $ip, $reason, $level));
 
         RateLimiter::clear($this->throttleKey());
 
+        // Mensaje dinámico para la pantalla de Login que indica el tiempo
+        $tiempoTexto = $lockoutSeconds >= 3600 ? ($lockoutSeconds / 3600) . ' hora(s)' : '1 minuto';
         throw ValidationException::withMessages([
-            'email' => "Demasiados intentos fallidos. Acceso suspendido temporalmente por seguridad.",
+            'email' => "Demasiados intentos fallidos. Acceso suspendido por {$tiempoTexto} debido a políticas corporativas.",
         ]);
     }
 
@@ -118,16 +139,44 @@ class LoginRequest extends FormRequest
                     Cache::has("lockout:ip:{$ip}") || 
                     ($userId && Cache::has("lockout:user:{$userId}"));
 
-        if (!$isBanned && $userId) {
+        $bannedUntilTime = null;
+
+        if ($userId) {
             $user = User::find($userId);
-            if ($user && $user->banned_until && Carbon::now()->lt($user->banned_until)) {
-                $isBanned = true;
+            if ($user && $user->banned_until) {
+                $bannedUntilTime = Carbon::parse($user->banned_until);
+                if (Carbon::now()->lt($bannedUntilTime)) {
+                    $isBanned = true;
+                }
             }
         }
 
         if ($isBanned) {
+            // Calcular dinámicamente los minutos o horas restantes para mostrar en la vista
+            if ($bannedUntilTime) {
+                $diffInSeconds = Carbon::now()->diffInSeconds($bannedUntilTime, false);
+                if ($diffInSeconds > 0) {
+                    if ($diffInSeconds >= 3600) {
+                        $restante = ceil($diffInSeconds / 3600) . ' hora(s)';
+                    } else {
+                        $restante = ceil($diffInSeconds / 60) . ' minuto(s)';
+                    }
+                    $mensajeError = "Esta solicitud se encuentra bloqueada. Intenta de nuevo en {$restante} por seguridad corporativa.";
+                } else {
+                    $mensajeError = "Esta cuenta, IP o solicitud se encuentra temporalmente bloqueada debido a políticas de seguridad corporativas.";
+                }
+            } else {
+                $mensajeError = "Acceso restringido temporalmente por bloqueo de seguridad perimetral.";
+            }
+
+            // LOG: Registrar que un usuario bloqueado intentó ingresar antes de tiempo
+            \Illuminate\Support\Facades\Log::channel('login')->notice('[BANNED_USER_ATTEMPT] Intento de acceso denegado a un objetivo actualmente bloqueado', [
+                'email' => $email,
+                'ip' => $ip
+            ]);
+
             throw ValidationException::withMessages([
-                'email' => "Esta cuenta, IP o solicitud se encuentra temporalmente bloqueada debido a políticas de seguridad corporativas.",
+                'email' => $mensajeError,
             ]);
         }
     }
@@ -148,7 +197,7 @@ class LoginRequest extends FormRequest
         return Str::transliterate(Str::lower($this->input('email')).'|'.$this->ip());
     }
 
-   protected function withValidator($validator)
+    protected function withValidator($validator)
     {
         $validator->after(function ($validator) {
             // 1. Si los campos básicos (email/password) están mal formados, registramos y abortamos
@@ -167,7 +216,7 @@ class LoginRequest extends FormRequest
 
             // Modifica esta condición si tu paquete de captcha usa otra forma de verificar (ej: Validator::execute..)
             if (!$captchaInput) { 
-                // 🚨 LOG: El usuario no marcó el captcha
+                // LOG: El usuario no marcó el captcha
                 \Illuminate\Support\Facades\Log::channel('login')->alert('[CAPTCHA_FAILED] Intento de inicio de sesión bloqueado por reCAPTCHA vacío o inválido', [
                     'email_intento' => $this->input('email'),
                     'ip' => $this->ip(),
@@ -177,7 +226,7 @@ class LoginRequest extends FormRequest
                 // Agregamos el error manualmente al validador
                 $validator->errors()->add('g-recaptcha-response', 'Por favor, completa el reCAPTCHA para demostrar que no eres un robot.');
             } else {
-                // ✅ LOG: Si el campo del captcha trae datos, asumimos éxito para la bitácora
+                // LOG: Si el campo del captcha trae datos, asumimos éxito para la bitácora
                 \Illuminate\Support\Facades\Log::channel('login')->info('[CAPTCHA_PASSED] reCAPTCHA enviado con éxito en Login', [
                     'email' => $this->input('email'),
                     'ip' => $this->ip()
@@ -185,4 +234,5 @@ class LoginRequest extends FormRequest
             }
         });
     }
+      
 }
