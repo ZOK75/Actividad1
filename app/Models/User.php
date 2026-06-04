@@ -44,6 +44,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'google2fa_secret' => 'encrypted',
     ];
 
     public $incrementing = false;

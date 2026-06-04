@@ -55,16 +55,12 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 
-        session()->put('auth_pre_user_id', $user->id);
-        session()->put('auth_pre_user_email', $user->email);
-
         $otp = rand(100000, 999999);
         session()->put('auth_user_otp_code', $otp);
 
         if ($user->is_admin) {
             session()->put('2fa_user_id', $user->id);
             session()->save();
-
             \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\OtpMail($otp));
 
             return redirect()->route('2fa.register');
@@ -78,4 +74,5 @@ class RegisteredUserController extends Controller
 
         return redirect()->route('usuario.otp');
     }
+
 }
