@@ -37,6 +37,7 @@ class LoginRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'email.email' => 'Por favor usa un formato de correo valido con @',
             'g-recaptcha-response.required' => 'Por favor, completa el reCAPTCHA para demostrar que no eres un robot.',
             'g-recaptcha-response.recaptcha' => 'El reCAPTCHA no es válido. Inténtalo de nuevo.'
         ];
@@ -72,7 +73,7 @@ class LoginRequest extends FormRequest
             }
 
             throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
+                'email' => 'Alguna de tus credenciales ingresadas son incorrectas, intentalo de nuevo',
             ]);
         }
 
