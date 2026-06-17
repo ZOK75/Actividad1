@@ -1,4 +1,16 @@
 <x-guest-layout>
+
+    <div class="absolute top-0 right-0 p-6 text-end z-50 flex items-center gap-4">
+            <a href="{{ route('invitado.checkpoint') }}" class="font-semibold text-gray-600 hover:text-gray-950 dark:text-gray-400 dark:hover:text-white transition duration-150 ease-in-out">
+                Invitado
+            </a>
+            
+            <a href="{{ route('login') }}" class="font-semibold text-gray-600 hover:text-gray-950 dark:text-gray-400 dark:hover:text-white transition duration-150 ease-in-out">
+                Log in
+            </a>
+
+        </div>
+
     <form method="POST" action="{{ route('register') }}">
         @csrf
 
