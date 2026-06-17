@@ -1,4 +1,18 @@
 <x-guest-layout>
+
+    <div class="absolute top-0 right-0 p-6 text-end z-50 flex items-center gap-4">
+     
+        <a href="{{ route('login') }}" class="font-semibold text-gray-600 hover:text-gray-950 dark:text-gray-400 dark:hover:text-white transition duration-150 ease-in-out">
+            Log in
+        </a>
+        
+        @if (Route::has('register'))
+            <a href="{{ route('register') }}" class="font-semibold text-gray-600 hover:text-gray-950 dark:text-gray-400 dark:hover:text-white transition duration-150 ease-in-out">
+                Register
+            </a>
+        @endif
+    </div>
+    
     <div class="mb-6 text-center">
         <h2 class="text-xl font-bold text-gray-800 mb-2">Acceso de Invitados</h2>
         <p class="text-sm text-gray-600">Por favor introduce tu correo electrónico y verifica el reCAPTCHA para continuar.</p>

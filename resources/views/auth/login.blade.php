@@ -1,9 +1,23 @@
 <x-guest-layout>
     <!-- Session Status -->
+    <div class="absolute top-0 right-0 p-6 text-end z-50 flex items-center gap-4">
+        <a href="{{ route('invitado.checkpoint') }}" class="font-semibold text-gray-600 hover:text-gray-950 dark:text-gray-400 dark:hover:text-white transition duration-150 ease-in-out">
+            Invitado
+        </a>
+        
+        @if (Route::has('register'))
+            <a href="{{ route('register') }}" class="font-semibold text-gray-600 hover:text-gray-950 dark:text-gray-400 dark:hover:text-white transition duration-150 ease-in-out">
+                Register
+            </a>
+        @endif
+    </div>
+
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
     <form method="POST" action="{{ route('login') }}">
-        @csrf
+       @csrf
+
+       
 
         <!-- Email Address -->
         <div>
