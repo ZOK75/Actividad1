@@ -21,7 +21,7 @@ Route::get('/', function (Request $request) {
         $request->session()->forget(['invitado_verificado', 'invitado_otp_code', 'invitado_otp_email', 'invitado_ultima_actividad']);
         $request->session()->save();
     }
-    return view('welcome');
+    return redirect()->route('login');
 });
 
 Route::get('/dashboard', function (Request $request) {
