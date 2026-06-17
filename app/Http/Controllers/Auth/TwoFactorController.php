@@ -43,8 +43,23 @@ class TwoFactorController extends Controller
             'email_otp_code.required' => 'El código enviado al correo es obligatorio.'
         ]);
 
-        //  CONFIGURACIÓN - ERROR 1: Falló el código de Correo enviado al Administrador
+        //PRIMERO EVALUAMOS: El token dinámico de la aplicación móvil de Google
+        $google2fa = app('pragmarx.google2fa');
+        $valid = $google2fa->verifyKey($secretKey, $request->one_time_password);
+
+        if (!$valid) {
+            //LOG: Falló primero el OTP  de google auth
+            Log::channel('login')->warning('[2FA_REGISTER_FAILED] Token de Google Authenticator incorrecto durante el registro', [
+                'email_admin' => $user ? $user->email : 'Desconocido',
+                'ip' => $request->ip()
+            ]);
+
+            return back()->withErrors(['one_time_password' => 'Código OTP incorrecto. Intenta de nuevo.']);
+        }
+
+        // segunda verificacion: El código de Correo enviado al Administrador
         if ($request->email_otp_code != $request->session()->get('auth_user_otp_code')) {
+            // LOG: El celular estuvo bien, pero el correo estuvo mal
             Log::channel('login')->warning('[2FA_REGISTER_FAILED] Código de correo incorrecto durante registro 2FA de Administrador', [
                 'email_admin' => $user ? $user->email : 'Desconocido',
                 'ip' => $request->ip()
@@ -53,34 +68,20 @@ class TwoFactorController extends Controller
             return back()->withErrors(['email_otp_code' => 'El código de correo electrónico es incorrecto. Verifícalo en Mailtrap.']);
         }
 
-        $google2fa = app('pragmarx.google2fa');
-        $valid = $google2fa->verifyKey($secretKey, $request->one_time_password);
+        // verifiacion exitos: Ambos estuvieron perfectos
+        $user->google2fa_secret = $secretKey;
+        $user->save();
 
-        if ($valid) {
-            $user->google2fa_secret = $secretKey;
-            $user->save();
+        Auth::login($user);
 
-            Auth::login($user);
-
-            //  CONFIGURACIÓN - ÉXITO: Administrador configuró exitosamente su app móvil y correo
-            Log::channel('login')->info('[2FA_REGISTER_SUCCESS] Administrador vinculó su Google Authenticator con éxito', [
-                'email' => $user->email,
-                'ip' => $request->ip()
-            ]);
-
-            $request->session()->forget(['2fa_user_id', '2fa_secret_temp']);
-            return redirect()->route('dashboard');
-        }
-
-        // CONFIGURACIÓN - ERROR 2: Falló el token de la aplicación móvil de Google
-        Log::channel('login')->warning('[2FA_REGISTER_FAILED] Token de Google Authenticator incorrecto durante el registro', [
-            'email_admin' => $user ? $user->email : 'Desconocido',
+        Log::channel('login')->info('[2FA_REGISTER_SUCCESS] Administrador vinculó su Google Authenticator con éxito', [
+            'email' => $user->email,
             'ip' => $request->ip()
         ]);
 
-        return back()->withErrors(['one_time_password' => 'Código OTP incorrecto. Intenta de nuevo.']);
+        $request->session()->forget(['2fa_user_id', '2fa_secret_temp']);
+        return redirect()->route('dashboard');
     }
-
     public function showChallenge(Request $request)
     {
         if (!$request->session()->has('2fa_user_id')) return redirect()->route('login');
@@ -102,8 +103,23 @@ class TwoFactorController extends Controller
 
         $user = User::find($userId);
 
-        //  RETO - ERROR 1: El administrador ingresó mal el código que le llegó al correo
+        // primera verificacion: El token dinámico de Google Authenticator
+        $google2fa = app('pragmarx.google2fa');
+        $valid = $google2fa->verifyKey($user->google2fa_secret, $request->one_time_password);
+
+        if (!$valid) {
+            //LOG: Falló el token de la aplicación de google auth movil
+            Log::channel('login')->warning('[GOOGLE_2FA_FAILED] Token dinámico de Google Authenticator inválido proporcionado por Administrador', [
+                'email_administrador' => $user ? $user->email : 'Desconocido',
+                'ip' => $request->ip()
+            ]);
+
+            return back()->withErrors(['one_time_password' => 'El código de Google Authenticator es inválido.']);
+        }
+
+        // segunda evaluacion: El código de correo electrónico
         if ($request->email_otp_code != $request->session()->get('auth_user_otp_code')) {
+            // LOG: El codigo OTP de google pasó, pero el correo falló
             Log::channel('login')->warning('[GOOGLE_2FA_FAILED] Código de correo incorrecto para Administrador en el Login corporativo', [
                 'email_administrador' => $user ? $user->email : 'Desconocido',
                 'ip' => $request->ip()
@@ -112,30 +128,17 @@ class TwoFactorController extends Controller
             return back()->withErrors(['email_otp_code' => 'El código de correo electrónico es incorrecto. Verifícalo en Mailtrap.']);
         }
 
-        $google2fa = app('pragmarx.google2fa');
-        $valid = $google2fa->verifyKey($user->google2fa_secret, $request->one_time_password);
+        // verificacion exitosa: Ambos códigos son correctos
+        Auth::login($user);
 
-        if ($valid) {
-            Auth::login($user);
-
-            // RETO - ÉXITO: Administrador pasó los dos controles de seguridad con éxito (Correo + App móvil)
-            Log::channel('login')->info('[GOOGLE_2FA_VERIFIED] Administrador autenticado plenamente mediante doble factor corporativo', [
-                'email' => $user->email,
-                'ip' => $request->ip()
-            ]);
-
-            $request->session()->forget(['2fa_user_id', 'auth_user_otp_code']);
-            $request->session()->save();
-
-            return redirect()->route('dashboard');
-        }
-
-        // RETO - ERROR 2: El administrador ingresó mal el token dinámico de Google Authenticator
-        Log::channel('login')->warning('[GOOGLE_2FA_FAILED] Token dinámico de Google Authenticator inválido proporcionado por Administrador', [
-            'email_administrador' => $user ? $user->email : 'Desconocido',
+        Log::channel('login')->info('[GOOGLE_2FA_VERIFIED] Administrador autenticado plenamente mediante doble factor corporativo', [
+            'email' => $user->email,
             'ip' => $request->ip()
         ]);
 
-        return back()->withErrors(['one_time_password' => 'El código de Google Authenticator es inválido.']);
+        $request->session()->forget(['2fa_user_id', 'auth_user_otp_code']);
+        $request->session()->save();
+
+        return redirect()->route('dashboard');
     }
 }
