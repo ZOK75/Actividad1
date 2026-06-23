@@ -54,18 +54,18 @@ class TwoFactorController extends Controller
                 'ip' => $request->ip()
             ]);
 
-            return back()->withErrors(['one_time_password' => 'Código OTP incorrecto. Intenta de nuevo.']);
+            return back()->withErrors(['one_time_password' => 'El código de Google Authenticator es inválido.']);
         }
 
         // segunda verificacion: El código de Correo enviado al Administrador
         if ($request->email_otp_code != $request->session()->get('auth_user_otp_code')) {
             // LOG: El celular estuvo bien, pero el correo estuvo mal
-            Log::channel('login')->warning('[2FA_REGISTER_FAILED] Código de correo incorrecto durante registro 2FA de Administrador', [
+            Log::channel('login')->warning('[2FA_REGISTER_FAILED] Código OTP de correo incorrecto durante registro de Administrador', [
                 'email_admin' => $user ? $user->email : 'Desconocido',
                 'ip' => $request->ip()
             ]);
 
-            return back()->withErrors(['email_otp_code' => 'El código de correo electrónico es incorrecto. Verifícalo en Mailtrap.']);
+            return back()->withErrors(['email_otp_code' => 'El código de correo electrónico es incorrecto']);
         }
 
         // verifiacion exitos: Ambos estuvieron perfectos
@@ -125,7 +125,7 @@ class TwoFactorController extends Controller
                 'ip' => $request->ip()
             ]);
 
-            return back()->withErrors(['email_otp_code' => 'El código de correo electrónico es incorrecto. Verifícalo en Mailtrap.']);
+            return back()->withErrors(['email_otp_code' => 'El código de correo electrónico es incorrecto.']);
         }
 
         // verificacion exitosa: Ambos códigos son correctos
