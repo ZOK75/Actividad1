@@ -24,7 +24,6 @@ class OtpMailController extends Controller
         ]);
 
         if ($validator->fails()) {
-        // LOG: Si el fallo involucra al reCAPTCHA
             if ($validator->errors()->has('g-recaptcha-response')) {
                 \Illuminate\Support\Facades\Log::channel('login')->alert('[CAPTCHA_FAILED] Invitado falló o ignoró el reCAPTCHA', [
                     'email_intento' => $request->invitado_email ?? 'No proporcionado',
@@ -35,8 +34,7 @@ class OtpMailController extends Controller
 
             return back()->withErrors($validator)->withInput();
         }
-
-    // LOG: Si pasó el captcha con éxito
+        
         \Illuminate\Support\Facades\Log::channel('login')->info('[CAPTCHA_PASSED] Invitado resolvió el reCAPTCHA correctamente', [
             'email' => $request->invitado_email,
             'ip' => $request->ip()
@@ -74,7 +72,6 @@ class OtpMailController extends Controller
         if ($request->otp_input == session()->get('invitado_otp_code')) {
             session()->put('invitado_verificado', true);
             
-            // LOG: Verificación exitosa
             Log::channel('login')->info('[OTP_VERIFIED] Invitado verificó su OTP con éxito', [
                 'email' => $emailInvitado,
                 'ip' => $request->ip()
@@ -85,7 +82,6 @@ class OtpMailController extends Controller
             return redirect()->route('dashboard');
         }
 
-        // LOG: Intento fallido de código OTP
         Log::channel('login')->warning('[OTP_FAILED] Código OTP incorrecto insertado por invitado', [
             'email_intento' => $emailInvitado,
             'codigo_ingresado' => $request->otp_input,
@@ -97,7 +93,7 @@ class OtpMailController extends Controller
 
     public function showUsuarioOtpForm()
     {
-        if (!session()->has('auth_user_otp_code')) {
+        if (!session()->has('auth_user_otp_code') && !session()->has('registro_otp_code')) {
             return redirect()->route('login');
         }
         return view('auth.usuario-otp');
@@ -106,6 +102,46 @@ class OtpMailController extends Controller
     public function verifyUsuarioOtp(Request $request)
     {
         $request->validate(['otp_input' => 'required|digits:6']);
+
+        if ($request->session()->has('registro_temporal')) {
+            $emailIntento = \Illuminate\Support\Facades\Crypt::decrypt(
+                $request->session()->get('registro_temporal')
+            )['email'] ?? 'Desconocido';
+
+            if ($request->otp_input != $request->session()->get('registro_otp_code')) {
+                Log::channel('login')->warning('[REGISTER_OTP_FAILED] Código OTP de registro incorrecto', [
+                    'email_intento'   => $emailIntento,
+                    'codigo_ingresado' => $request->otp_input,
+                    'ip'              => $request->ip()
+                ]);
+
+                return back()->withErrors(['otp_input' => 'El código OTP ingresado es incorrecto. Verifícalo en tu bandeja de Mailtrap.']);
+            }
+
+            $datosUser = \Illuminate\Support\Facades\Crypt::decrypt(
+                $request->session()->get('registro_temporal')
+            );
+
+            $user = User::create([
+                'name'     => $datosUser['name'],
+                'email'    => $datosUser['email'],
+                'password' => $datosUser['password'],
+                'is_admin' => false,
+            ]);
+
+            Log::channel('login')->info('[REGISTER_SUCCESS] Usuario normal registrado en DB tras verificar OTP de correo', [
+                'user_id'  => $user->id,
+                'email'    => $user->email,
+                'ip'       => $request->ip()
+            ]);
+
+            $request->session()->forget(['registro_temporal', 'registro_otp_code']);
+            $request->session()->save();
+
+            Auth::login($user);
+
+            return redirect()->route('dashboard');
+        }
 
         $emailUsuario = session()->get('auth_pre_user_email');
 
@@ -116,10 +152,9 @@ class OtpMailController extends Controller
             if ($user) {
                 Auth::login($user);
 
-                // LOG: Verificación de segundo factor exitosa para usuario registrado
                 Log::channel('login')->info('[2FA_VERIFIED] Usuario autenticado completamente mediante OTP', [
                     'email' => $user->email,
-                    'ip' => $request->ip()
+                    'ip'    => $request->ip()
                 ]);
 
                 session()->forget(['auth_user_otp_code', 'auth_pre_user_id', 'auth_pre_user_email']);
@@ -130,11 +165,10 @@ class OtpMailController extends Controller
             }
         }
 
-        // LOG: Intento de OTP fallido para usuario registrado
         Log::channel('login')->warning('[2FA_FAILED] Código OTP de segundo factor incorrecto', [
-            'email_usuario' => $emailUsuario,
+            'email_usuario'    => $emailUsuario,
             'codigo_ingresado' => $request->otp_input,
-            'ip' => $request->ip()
+            'ip'               => $request->ip()
         ]);
 
         return back()->withErrors(['otp_input' => 'El código OTP ingresado es incorrecto. Verifícalo en tu bandeja de Mailtrap.']);
