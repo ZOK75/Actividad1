@@ -14,7 +14,7 @@
 
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
-    <form method="POST" action="{{ route('login') }}">
+    <form method="POST" action="{{ route('login') }}" novalidate>
        @csrf
 
        
@@ -48,6 +48,10 @@
 
         <div class="mt-4 flex justify-center">
             {!! htmlFormSnippet() !!}
+        </div>
+
+        <div class="mt-2 text-center">
+            <x-input-error :messages="$errors->get('g-recaptcha-response')" class="mt-2" />
         </div>
 
         <div class="flex items-center justify-end mt-4">

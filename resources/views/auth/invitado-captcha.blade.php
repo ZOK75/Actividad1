@@ -18,7 +18,7 @@
         <p class="text-sm text-gray-600">Por favor introduce tu correo electrónico y verifica el reCAPTCHA para continuar.</p>
     </div>
 
-    <form method="POST" action="{{ route('invitado.verify') }}">
+    <form method="POST" action="{{ route('invitado.verify') }}" novalidate>
         @csrf
 
         <div class="mb-4">

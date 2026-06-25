@@ -19,8 +19,9 @@ class OtpMailController extends Controller
             'invitado_email' => ['required', 'email']
         ], [
             'g-recaptcha-response.required' => 'Por favor, completa el reCAPTCHA para demostrar que no eres un robot.',
-            'invitado_email.required' => 'El correo electrónico es obligatorio.',
-            'invitado_email.email' => 'Por favor, ingresa un correo electrónico válido.'
+            'g-recaptcha-response.recaptcha' => 'El reCAPTCHA no es válido. Inténtalo de nuevo.',
+            'invitado_email.required' => 'El campo de email esta vacio, por favor completalo',
+            'invitado_email.email' => 'Por favor usa un formato de correo valido con @'
         ]);
 
         if ($validator->fails()) {

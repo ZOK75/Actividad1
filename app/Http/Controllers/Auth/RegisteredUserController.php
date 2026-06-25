@@ -44,7 +44,18 @@ class RegisteredUserController extends Controller
             'name'                 => ['required', 'string', 'max:255'],
             'email'                => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password'             => ['required', 'confirmed', Rules\Password::defaults()],
+            'password_confirmation'=> ['required'],
             'g-recaptcha-response' => ['required', 'recaptcha'],
+        ], [
+            'name.required' => 'El campo de nombre esta vacio, por favor completalo',
+            'email.required' => 'El campo de email esta vacio, por favor completalo',
+            'email.email' => 'Por favor usa un formato de correo valido con @',
+            'password.required' => 'El campo de password esta vacio, por favor completalo',
+            'password.confirmed' => 'La confirmación del password no coincide.',
+            'password.min' => 'El password debe tener al menos 8 caracteres.',
+            'password_confirmation.required' => 'El campo de confirmar password esta vacio, por favor completalo',
+            'g-recaptcha-response.required' => 'Por favor, completa el reCAPTCHA para demostrar que no eres un robot.',
+            'g-recaptcha-response.recaptcha' => 'El reCAPTCHA no es válido. Inténtalo de nuevo.'
         ]);
 
         if ($validator->fails()) {

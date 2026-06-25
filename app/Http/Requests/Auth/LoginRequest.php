@@ -37,7 +37,9 @@ class LoginRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'email.required' => 'El campo de email esta vacio, por favor completalo',
             'email.email' => 'Por favor usa un formato de correo valido con @',
+            'password.required' => 'El campo de password esta vacio, por favor completalo',
             'g-recaptcha-response.required' => 'Por favor, completa el reCAPTCHA para demostrar que no eres un robot.',
             'g-recaptcha-response.recaptcha' => 'El reCAPTCHA no es válido. Inténtalo de nuevo.'
         ];
@@ -201,33 +203,32 @@ class LoginRequest extends FormRequest
     protected function withValidator($validator)
     {
         $validator->after(function ($validator) {
-            // 1. Si los campos básicos (email/password) están mal formados, registramos y abortamos
+            // 1. VALIDACIÓN MANUAL DEL reCAPTCHA
+            $captchaInput = $this->input('g-recaptcha-response');
+
+            if (!$captchaInput) { 
+                // Agregamos el error manualmente al validador
+                $validator->errors()->add('g-recaptcha-response', 'Por favor, completa el reCAPTCHA para demostrar que no eres un robot.');
+            }
+
+            // 2. Registro de logs según los resultados
             if ($validator->errors()->any()) {
+                if (!$captchaInput) {
+                    // LOG: El usuario no marcó el captcha
+                    \Illuminate\Support\Facades\Log::channel('login')->alert('[CAPTCHA_FAILED] Intento de inicio de sesión bloqueado por reCAPTCHA vacío o inválido', [
+                        'email_intento' => $this->input('email'),
+                        'ip' => $this->ip(),
+                        'user_agent' => $this->userAgent()
+                    ]);
+                }
+
                 \Illuminate\Support\Facades\Log::channel('login')->warning('[VALIDATION_ERROR] Campos mal formados en el Login', [
                     'ip' => $this->ip(),
                     'errores' => $validator->errors()->messages(),
                     'user_agent' => $this->userAgent()
                 ]);
-                return; // Frenamos aquí
-            }
-
-            // 2. VALIDACIÓN MANUAL DEL reCAPTCHA
-            // Evaluamos el campo directamente del request para que no choque con las reglas de Laravel
-            $captchaInput = $this->input('g-recaptcha-response');
-
-            // Modifica esta condición si tu paquete de captcha usa otra forma de verificar (ej: Validator::execute..)
-            if (!$captchaInput) { 
-                // LOG: El usuario no marcó el captcha
-                \Illuminate\Support\Facades\Log::channel('login')->alert('[CAPTCHA_FAILED] Intento de inicio de sesión bloqueado por reCAPTCHA vacío o inválido', [
-                    'email_intento' => $this->input('email'),
-                    'ip' => $this->ip(),
-                    'user_agent' => $this->userAgent()
-                ]);
-
-                // Agregamos el error manualmente al validador
-                $validator->errors()->add('g-recaptcha-response', 'Por favor, completa el reCAPTCHA para demostrar que no eres un robot.');
             } else {
-                // LOG: Si el campo del captcha trae datos, asumimos éxito para la bitácora
+                // LOG: Si el campo del captcha trae datos y no hay otros errores, éxito para la bitácora
                 \Illuminate\Support\Facades\Log::channel('login')->info('[CAPTCHA_PASSED] reCAPTCHA enviado con éxito en Login', [
                     'email' => $this->input('email'),
                     'ip' => $this->ip()
